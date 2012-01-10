@@ -1,0 +1,142 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use IO::File;
+STDOUT->autoflush(1);
+STDERR->autoflush(1);
+use Getopt::Long;
+use Pod::Usage;
+
+use UNIVERSAL;
+use Time::HiRes qw(setitimer ITIMER_REAL);
+use Term::ANSIColor;
+
+my $Debug = 0;
+sub dprint (@) {
+    return unless $Debug;
+    chomp(my @m = @_);
+    print STDERR 'DEBUG: ', join(" ", @m),"\n";
+}
+sub dprint2(@) {
+    dprint @_ if $Debug >= 2;
+}
+
+MAIN: {
+    my $line_counter     = 0;
+
+    my %opt;
+    my $max_lps       = 10; # nof_lines/sec
+    my $flood_message = 'NOTIFY_FLOOD';
+    my $log_type      = 'plain';
+    Getopt::Long::Configure("bundling");
+    GetOptions(\%opt,
+               'max-lps|l=i'       => \$max_lps,
+               'flood-message|m=s' => \$flood_message,
+               'log-type|t=s'      => \$log_type,
+               'debug|d+'          => \$Debug,
+               'help|h|?'          => sub{ pod2usage(-verbose=>1) }) or pod2usage();
+    dprint "DEBUG MODE LEVEL=$Debug";
+    dprint "max_lps: $max_lps";
+    dprint "flood_message: $flood_message";
+    dprint "log_type: $log_type";
+
+    my $cook_up = __PACKAGE__->can($log_type)
+        or die "no such sub: $log_type";
+
+    $SIG{ALRM} = sub {
+        dprint "line_counter=$line_counter";
+        if ($line_counter >= $max_lps) {
+            warn "$flood_message\n";
+        }
+        $line_counter = 0;
+    };
+    setitimer(ITIMER_REAL, 1.0, 1.0);
+
+    while (<>) {
+        print $cook_up->($_);
+        $line_counter++;
+    }
+
+    exit 0;
+}
+
+sub plain { $_[0] }
+
+sub http_error {
+    my $log = shift;
+    $log =~ s/ 50\d / colored(' 500 ', 'yellow bold on_red') /e;
+    return $log;
+}
+
+
+__END__
+
+=head1 NAME
+
+B<chase-tail> - notify and cosmetic log lines
+
+=head1 SYNOPSIS
+
+B<chase-tail> [ -d ]
+[ --max-lps|-l max_lps ]
+[ --flood-message|-m flood_message ]
+[ --log-type|-t log_type ]
+
+    $ tail -F access_log | chase-tail -l 10 -t http_error
+
+=head1 DESCRIPTION
+
+notify and cosmetic log lines.
+
+=head1 OPTIONS
+
+=over 4
+
+=item --max-lps | -l max_lps:Int
+
+if number of lines in a second exceeds this max_lps, print flood message into STDERR.
+
+default is fixme.
+
+=item --flood-message | -m flood_message:Str
+
+default is "NOTIFY_FLOOD".
+
+it is good idea that you set this message as trigger of iTerm2 (Profiles -> Advanced -> Triggers).
+
+=item --log-type | -t log_type:Str
+
+specify log type for cosmetic log lines.
+
+default is "plain" that is no cook up just return it.
+
+=item -d
+
+=item B<--debug>
+
+increase debug level.
+-d -d more verbosely.
+
+=back
+
+=head1 AUTHOR
+
+HIROSE, Masaaki E<lt>hirose31 _at_ gmail.comE<gt>
+
+=head1 COPYRIGHT & LICENSE
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+=cut
+
+# for Emacsen
+# Local Variables:
+# mode: cperl
+# cperl-indent-level: 4
+# indent-tabs-mode: nil
+# coding: utf-8
+# End:
+
+# vi: set ts=4 sw=4 sts=0 :
