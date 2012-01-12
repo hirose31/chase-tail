@@ -27,7 +27,7 @@ MAIN: {
 
     my %opt;
     my $max_lps       = 10; # nof_lines/sec
-    my $flood_message = 'NOTIFY_FLOOD';
+    my $flood_message = ('='x32).' NOTIFY_FLOOD '.('='x32);
     my $log_type      = 'plain';
     Getopt::Long::Configure("bundling");
     GetOptions(\%opt,
@@ -47,7 +47,7 @@ MAIN: {
     $SIG{ALRM} = sub {
         dprint "line_counter=$line_counter";
         if ($line_counter >= $max_lps) {
-            warn "$flood_message\n";
+            warn colored($flood_message, 'yellow bold on_red')."\n";
         }
         $line_counter = 0;
     };
