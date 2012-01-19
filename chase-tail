@@ -65,7 +65,20 @@ sub plain { $_[0] }
 
 sub http_error {
     my $log = shift;
-    $log =~ s/ 50\d / colored(' 500 ', 'yellow bold on_red') /e;
+    $log =~ s/( 50\d )/colored($1, 'yellow bold on_red')/ge;
+    return $log;
+}
+
+sub various_error {
+    my $log = shift;
+    my @re;
+
+    push @re, qr/ 50\d /;
+    push @re, qr/Lock wait timeout exceeded/;
+    push @re, qr/Too many connections/;
+
+    my $re = join('|',@re);
+    $log =~ s/($re)/colored($1, 'yellow bold on_red')/ge;
     return $log;
 }
 
